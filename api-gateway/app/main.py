@@ -13,4 +13,8 @@ async def get_home():
         response = await client.get("http://auth-service:8000")
         return response.json()
 
+@app.get("/health")
+async def health():
+    return {"status": "healthy"}
+
 
