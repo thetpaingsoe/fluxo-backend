@@ -1,61 +1,61 @@
-version: "3.8"
+x-shared: &shared
+  environment:
+    PYTHONUNBUFFERED: 1
+
 services:
-  db:
-    image: mysql:8
+  rabbitmq:
+    image: rabbitmq:3-management
     ports:
-      - "3306:3306"
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DB}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      - "5672:5672"
+      - "15672:15672"
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - fluxo-net
-
-  task-service:
-    build: ./task-service
-    depends_on:
-      db:
-        condition: service_healthy
-    env_file: ./task-service/.env 
-    expose:
-      - "8000"
-    environment:
-      DB_HOST: db
-      DB_PORT: ${MYSQL_PORT}
-      DB_NAME: ${MYSQL_DB}
-      DB_USER: ${MYSQL_USER}
-      DB_PASSWORD: ${MYSQL_PASSWORD}
-    networks:
-      - fluxo-net
 
   auth-service:
+    <<: *shared
     build: ./auth-service
+    ports:
+      - "8001:8000"
+    volumes:
+      - auth_data:/app/data
+
+  task-service:
+    <<: *shared
+    build: ./task-service
+    ports:
+      - "8002:8000"
     depends_on:
-      db:
+      rabbitmq:
         condition: service_healthy
-    expose:
-      - "8000"
-    networks:
-      - fluxo-net
+    environment:
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+    volumes:
+      - task_data:/app/data
+
+  analytics-service:
+    <<: *shared
+    build: ./analytics-service
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+    volumes:
+      - analytics_data:/app/data
 
   api-gateway:
+    <<: *shared
     build: ./api-gateway
-    depends_on:
-      db:
-        condition: service_healthy
     ports:
       - "8000:8000"
-    networks:
-      - fluxo-net
-volumes:
-  mysql_data:
+    depends_on:
+      - auth-service
+      - task-service
 
-networks:
-  fluxo-net:
-    driver: bridge
+volumes:
+  auth_data:
+  task_data:
+  analytics_data:

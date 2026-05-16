@@ -1,35 +1,35 @@
+from datetime import datetime, timedelta, timezone
+from typing import Optional
+import os
 
-from fastapi import Request
-import jwt
+from jose import JWTError, jwt
+from passlib.context import CryptContext
 
-def login(request : Request):
-    
-    auth = request.headers.get("Authorization")
-    
+SECRET_KEY = os.getenv("JWT_SECRET", "fluxo-secret-key-change-me")
+ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
+EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRE_MINUTES", "60"))
 
-def encode(request : Request):
-    # auth = request.headers.get("Authorization")
-    # if not auth:
-    #     return {"error": "Authorization header is missing"}
-    
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+def hash_password(password: str) -> str:
+    return pwd_context.hash(password)
+
+
+def verify_password(plain: str, hashed: str) -> bool:
+    return pwd_context.verify(plain, hashed)
+
+
+def create_access_token(data: dict) -> str:
+    to_encode = data.copy()
+    expire = datetime.now(timezone.utc) + timedelta(minutes=EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def decode_access_token(token: str) -> Optional[dict]:
     try:
-        token = jwt.encode({"user": "example_user"}, "secret", algorithm="HS256")
-        return {"token": token}
-    except Exception as e:
-        return {"error": str(e)}
-    
-def decode(request : Request):
-    auth = request.headers.get("Authorization")
-    if not auth:
-        return {"error": "Authorization header is missing"}
-    
-    try:
-        token = auth.split(" ")[1]  # Assuming the format is "Bearer <token>"
-        decoded = jwt.decode(token, "secret", algorithms=["HS256"])
-        return {"decoded": decoded}
-    except jwt.ExpiredSignatureError:
-        return {"error": "Token has expired"}
-    except jwt.InvalidTokenError:
-        return {"error": "Invalid token"}
-    except Exception as e:
-        return {"error": str(e)}
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except JWTError:
+        return None

@@ -1,10 +1,24 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 import httpx
 
-router = APIRouter(prefix="", tags=["Auth"])
+router = APIRouter(tags=["Auth"])
 
-@router.get("/login")
-async def login():
+AUTH_SERVICE_URL = "http://auth-service:8000"
+
+
+@router.post("/register")
+async def register(body: dict):
     async with httpx.AsyncClient() as client:
-        response = await client.get("http://auth-service:8000/login")
-        return response.json()
+        resp = await client.post(f"{AUTH_SERVICE_URL}/register", json=body)
+        if resp.status_code >= 400:
+            raise HTTPException(status_code=resp.status_code, detail=resp.json().get("detail", "Auth error"))
+        return resp.json()
+
+
+@router.post("/login")
+async def login(body: dict):
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(f"{AUTH_SERVICE_URL}/login", json=body)
+        if resp.status_code >= 400:
+            raise HTTPException(status_code=resp.status_code, detail=resp.json().get("detail", "Auth error"))
+        return resp.json()

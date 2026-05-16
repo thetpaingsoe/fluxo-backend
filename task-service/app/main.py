@@ -1,23 +1,30 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
-from .routers import task
-from .database import Base, engine, SessionLocal
-from sqlalchemy.orm import Session
+from dotenv import load_dotenv
+import os
 
-# Create tables
+env_file = ".env" if os.getenv("DOCKER_ENV") == "true" else ".env.local"
+load_dotenv(env_file)
+
+from .database import Base, engine
+from .routers import task
+from .publisher import get_rabbitmq_url
+
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Fluxo Task API")
 
-# Include routers
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    url = get_rabbitmq_url()
+    print(f"RabbitMQ URL: {url}")
+    yield
+
+
+app = FastAPI(title="Fluxo Task Service", lifespan=lifespan)
+
 app.include_router(task.router)
+
 
 @app.get("/health")
 def health():
-    try:
-        # Check database connection
-        db: Session = SessionLocal()
-        db.execute("SELECT 1")
-        db.close()
-        return {"status": "healthy"}
-    except Exception as e:
-        return {"status": "unhealthy", "error": str(e)}
+    return {"status": "healthy"}

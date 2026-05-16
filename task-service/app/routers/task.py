@@ -1,39 +1,60 @@
+import asyncio
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+
 from .. import crud, schemas
-from ..database import SessionLocal
+from ..database import get_db
+from ..publisher import publish_event
 
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
 
-def get_db():
-    db = SessionLocal()
-    try : 
-        yield db
-    finally:
-        db.close()
 
 @router.get("/", response_model=list[schemas.TaskOut])
-def read_tasks(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+async def read_tasks(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     return crud.get_tasks(db, skip=skip, limit=limit)
 
+
 @router.get("/{task_id}", response_model=schemas.TaskOut)
-def read_task(task_id:int, db: Session = Depends(get_db)):
-    return crud.get_task(db, task_id)
+async def read_task(task_id: int, db: Session = Depends(get_db)):
+    task = crud.get_task(db, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return task
+
 
 @router.post("/", response_model=schemas.TaskOut)
-def create_task(task: schemas.TaskCreate, db: Session = Depends(get_db)):
-    return crud.create_task(db, task)
+async def create_task(task: schemas.TaskCreate, db: Session = Depends(get_db)):
+    db_task = crud.create_task(db, task)
+    asyncio.create_task(publish_event("task.created", db_task.user_id, db_task.id, db_task.category))
+    return db_task
+
 
 @router.put("/{task_id}", response_model=schemas.TaskOut)
-def update_task(task_id: int, task: schemas.TaskUpdate, db : Session = Depends(get_db)):
-    updated_task = crud.update_task(db, task_id, task)
-    if updated_task is None : 
-        raise HTTPException(status_code=404, detail="Task Not Found")
-    return updated_task
+async def update_task(task_id: int, task: schemas.TaskUpdate, db: Session = Depends(get_db)):
+    updated = crud.update_task(db, task_id, task)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return updated
+
 
 @router.delete("/{task_id}", response_model=schemas.TaskOut)
-def delete_task(task_id:int, db: Session = Depends(get_db)):
-    deleted_task = crud.delete_task(db, task_id)
-    if deleted_task is None : 
-        raise HTTPException(status_code=404, detail="Task Not Found")
-    return deleted_task
+async def delete_task(task_id: int, db: Session = Depends(get_db)):
+    deleted = crud.delete_task(db, task_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return deleted
+
+
+@router.post("/{task_id}/complete", response_model=schemas.TaskOut)
+async def complete_task(task_id: int, db: Session = Depends(get_db)):
+    task = crud.get_task(db, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    crud.update_task(db, task_id, schemas.TaskUpdate(status="completed"))
+    task.completed_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(task)
+    asyncio.create_task(publish_event("task.completed", task.user_id, task.id, task.category))
+    return task
