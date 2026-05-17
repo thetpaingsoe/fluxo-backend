@@ -1,4 +1,4 @@
-.PHONY: dev auth task analytics gateway test test-auth test-task test-analytics test-integration clean
+.PHONY: dev dev-frontend auth task analytics gateway test test-auth test-task test-analytics test-integration clean
 
 # Run all services locally (requires RabbitMQ)
 dev:
@@ -10,6 +10,9 @@ dev:
 	@echo "  2. cd task-service && uvicorn app.main:app --reload --port 8002"
 	@echo "  3. cd analytics-service && python consumer.py"
 	@echo "  4. cd api-gateway && uvicorn app.main:app --reload --port 8000"
+
+dev-frontend:
+	cd frontend && npm run dev
 
 docker-up:
 	docker compose up --build

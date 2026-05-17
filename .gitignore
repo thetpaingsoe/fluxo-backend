@@ -13,3 +13,8 @@ ENV/
 **/volumes/
 .docker/context/
 *.tar.gz
+
+# Node / frontend
+node_modules/
+dist/
+.vite/
