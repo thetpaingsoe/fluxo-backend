@@ -87,6 +87,6 @@ def task_client():
 @pytest.fixture
 def registered_user(auth_client):
     data = {"username": "integuser", "email": "integ@test.com", "password": "pass123"}
-    resp = auth_client.post("/register", json=data)
+    resp = auth_client.post("/api/register", json=data)
     assert resp.status_code == 200, f"Register failed: {resp.json()}"
     return {"username": "integuser", "password": "pass123", "token": resp.json()["access_token"]}

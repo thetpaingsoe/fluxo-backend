@@ -6,9 +6,9 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Fluxo Auth Service")
 
-app.include_router(route.router)
+app.include_router(route.router, prefix="/api")
 
 
-@app.get("/health")
+@app.get("/api/health")
 def health():
     return {"status": "healthy"}

@@ -1,7 +1,7 @@
 def test_complete_task(client, sample_task):
-    created = client.post("/tasks/", json=sample_task).json()
+    created = client.post("/api/tasks/", json=sample_task).json()
     task_id = created["id"]
-    resp = client.post(f"/tasks/{task_id}/complete")
+    resp = client.post(f"/api/tasks/{task_id}/complete")
     assert resp.status_code == 200
     data = resp.json()
     assert data["status"] == "completed"
@@ -9,5 +9,5 @@ def test_complete_task(client, sample_task):
 
 
 def test_complete_task_not_found(client):
-    resp = client.post("/tasks/999/complete")
+    resp = client.post("/api/tasks/999/complete")
     assert resp.status_code == 404

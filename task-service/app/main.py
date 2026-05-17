@@ -22,9 +22,9 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Fluxo Task Service", lifespan=lifespan)
 
-app.include_router(task.router)
+app.include_router(task.router, prefix="/api")
 
 
-@app.get("/health")
+@app.get("/api/health")
 def health():
     return {"status": "healthy"}
