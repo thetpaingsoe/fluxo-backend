@@ -1,13 +1,14 @@
+import os
+
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import httpx
 from jose import JWTError, jwt
-import os
 
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
 security = HTTPBearer()
 
-TASK_SERVICE_URL = "http://task-service:8000"
+TASK_SERVICE_URL = os.getenv("TASK_SERVICE_URL", "http://task-service:8000")
 SECRET_KEY = os.getenv("JWT_SECRET", "fluxo-secret-key-change-me")
 ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 
