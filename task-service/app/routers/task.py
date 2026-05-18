@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from .. import crud, schemas
+from ..actions.create_task_action import CreateTaskAction
 from ..database import get_db
 from ..publisher import publish_event
 
@@ -26,9 +27,8 @@ async def read_task(task_id: int, db: Session = Depends(get_db)):
 
 @router.post("/", response_model=schemas.TaskOut)
 async def create_task(task: schemas.TaskCreate, db: Session = Depends(get_db)):
-    db_task = crud.create_task(db, task)
-    asyncio.create_task(publish_event("task.created", db_task.user_id, db_task.id, db_task.category))
-    return db_task
+    action = CreateTaskAction(db)
+    return action.handle(task)
 
 
 @router.put("/{task_id}", response_model=schemas.TaskOut)
